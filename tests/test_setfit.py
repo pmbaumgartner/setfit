@@ -1,4 +1,6 @@
 from src.setfit import __version__, SetFitClassifier
+from sklearn.exceptions import NotFittedError
+import pytest
 
 
 def test_version():
@@ -16,3 +18,14 @@ def test_e2e():
 
     preds = clf.predict(["affirmitive", "negative"])
     assert preds.shape == (2,)
+
+
+def test_notfitted_error():
+    docs = ["yay", "boo", "yes", "no", "yeah"]
+    clf = SetFitClassifier("paraphrase-MiniLM-L3-v2")
+
+    with pytest.raises(NotFittedError):
+        clf.predict(docs)
+
+    with pytest.raises(NotFittedError):
+        clf.predict_proba(docs)
