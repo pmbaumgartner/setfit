@@ -10,6 +10,7 @@ from sentence_transformers import (
 )
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.linear_model import LogisticRegression
+from sklearn.exceptions import NotFittedError
 from torch.utils.data import DataLoader
 
 
@@ -52,6 +53,7 @@ class SetFitClassifier(BaseEstimator, ClassifierMixin):
         self.model = SentenceTransformer(model)
         self.classifier = classifier_head
         self.loss = loss(self.model)
+        self.fitted = False
 
     def fit(self, X, y, data_iter: int = 5, train_iter: int = 1):
         # TODO: Fix this (mutating + state issues)
@@ -69,15 +71,25 @@ class SetFitClassifier(BaseEstimator, ClassifierMixin):
         )
 
         X_train = self.model.encode(X)
-
         self.classifier.fit(X_train, y)
+        self.fitted = True
 
     def predict(self, X, y=None):
+        if not self.fitted:
+            raise NotFittedError(
+                "This SetFitClassifier instance is not fitted yet."
+                " Call 'fit' with appropriate arguments before using this estimator."
+            )
         X_embed = self.model.encode(X)
         preds = self.classifier.predict(X_embed)
         return preds
 
     def predict_proba(self, X, y=None):
+        if not self.fitted:
+            raise NotFittedError(
+                "This SetFitClassifier instance is not fitted yet."
+                " Call 'fit' with appropriate arguments before using this estimator."
+            )
         X_embed = self.model.encode(X)
         preds = self.classifier.predict_proba(X_embed)
         return preds
