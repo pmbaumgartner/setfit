@@ -1,42 +1,62 @@
 import random
+from collections import defaultdict
+from itertools import chain, groupby
+from typing import List
 
 import numpy as np
 import torch
-from sentence_transformers import (
-    InputExample,
-    SentenceTransformer,
-    losses,
-    models,
-)
+from sentence_transformers import InputExample, SentenceTransformer, losses
 from sklearn.base import BaseEstimator, ClassifierMixin
-from sklearn.linear_model import LogisticRegression
 from sklearn.exceptions import NotFittedError
+from sklearn.linear_model import LogisticRegression
 from torch.utils.data import DataLoader
 
 
-def sentence_pairs_generation(sentences, labels, pairs):
-    # initialize two empty lists to hold the (sentence, sentence) pairs and
-    # labels to indicate if a pair is positive or negative
+def generate_sentence_pair_batch(
+    sentences: List[str], labels: List[float]
+) -> List[InputExample]:
+    # 7x faster than original implementation on small data,
+    # 14x faster on 10000 examples
+    pairs = []
+    sent_lookup = defaultdict(list)
+    for label, grouper in groupby(
+        ((s, l) for s, l in zip(sentences, labels)), key=lambda x: x[1]
+    ):
+        sent_lookup[label].extend(list(i[0] for i in grouper))
+    neg_lookup = {}
+    for current_label in sent_lookup:
+        negative_options = list(
+            chain.from_iterable(
+                [
+                    sentences
+                    for label, sentences in sent_lookup.items()
+                    if label != current_label
+                ]
+            )
+        )
+        neg_lookup[current_label] = negative_options
 
-    numClassesList = np.unique(labels)
-    idx = [np.where(labels == i)[0] for i in numClassesList]
+    for current_sentence, current_label in zip(sentences, labels):
+        # Choose itself? Seems wrong.
+        positive_pair = random.choice(sent_lookup[current_label])
+        while positive_pair == current_sentence:
+            positive_pair = random.choice(sent_lookup[current_label])
 
-    for idxA in range(len(sentences)):
-        currentSentence = sentences[idxA]
-        label = labels[idxA]
-        idxB = np.random.choice(idx[np.where(numClassesList == label)[0][0]])
-        posSentence = sentences[idxB]
-        # prepare a positive pair and update the sentences and labels
-        # lists, respectively
-        pairs.append(InputExample(texts=[currentSentence, posSentence], label=1.0))
-
-        negIdx = np.where(labels != label)[0]
-        negSentence = sentences[np.random.choice(negIdx)]
-        # prepare a negative pair of images and update our lists
-        pairs.append(InputExample(texts=[currentSentence, negSentence], label=0.0))
+        negative_pair = random.choice(neg_lookup[current_label])
+        pairs.append(InputExample(texts=[current_sentence, positive_pair], label=1.0))
+        pairs.append(InputExample(texts=[current_sentence, negative_pair], label=0.0))
 
     # return a 2-tuple of our image pairs and labels
     return pairs
+
+
+def generate_multiple_sentence_pairs(
+    sentences: List[str], labels: List[float], iter: int = 1
+):
+    all_pairs = []
+    for _ in range(iter):
+        all_pairs.extend(generate_sentence_pair_batch(sentences, labels))
+    return all_pairs
 
 
 class SetFitClassifier(BaseEstimator, ClassifierMixin):
@@ -55,19 +75,25 @@ class SetFitClassifier(BaseEstimator, ClassifierMixin):
         self.loss = loss(self.model)
         self.fitted = False
 
-    def fit(self, X, y, data_iter: int = 5, train_iter: int = 1):
-        # TODO: Fix this (mutating + state issues)
-        train_examples = []
-        for x in range(data_iter):
-            train_examples = sentence_pairs_generation(
-                np.array(X), np.array(y), train_examples
-            )
-        train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=16)
+    def fit(
+        self,
+        X,
+        y,
+        data_iter: int = 5,
+        train_iter: int = 1,
+        batch_size: int = 16,
+        warmup_steps: int = 10,
+        show_progress_bar: bool = True,
+    ):
+        train_examples = generate_multiple_sentence_pairs(X, y, data_iter)
+        train_dataloader = DataLoader(
+            train_examples, shuffle=True, batch_size=batch_size
+        )
         self.model.fit(
             train_objectives=[(train_dataloader, self.loss)],
             epochs=train_iter,
-            warmup_steps=10,
-            show_progress_bar=True,
+            warmup_steps=warmup_steps,
+            show_progress_bar=show_progress_bar,
         )
 
         X_train = self.model.encode(X)
