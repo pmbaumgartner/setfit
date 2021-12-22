@@ -1,8 +1,10 @@
+from pathlib import Path
 import random
 from collections import defaultdict
 from itertools import chain, groupby
-from typing import List
+from typing import List, Optional, Union
 
+import joblib
 import numpy as np
 import torch
 from sentence_transformers import InputExample, SentenceTransformer, losses
@@ -10,6 +12,8 @@ from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.exceptions import NotFittedError
 from sklearn.linear_model import LogisticRegression
 from torch.utils.data import DataLoader
+
+StrOrPath = Union[Path, str]
 
 
 def generate_sentence_pair_batch(
@@ -119,3 +123,24 @@ class SetFitClassifier(BaseEstimator, ClassifierMixin):
         X_embed = self.model.encode(X)
         preds = self.classifier.predict_proba(X_embed)
         return preds
+
+    def save(
+        self,
+        path: StrOrPath,
+        model_name: Optional[str] = None,
+        create_model_card: bool = False,
+    ):
+        if not self.fitted:
+            raise NotFittedError(
+                "This SetFitClassifier instance is not fitted yet."
+                " Call 'fit' with appropriate arguments before saving this estimator."
+            )
+        self.model.save(str(path), model_name, create_model_card)
+        joblib.dump(self.classifier, Path(path) / "classifier.pkl")
+
+    @classmethod
+    def load(cls, path: StrOrPath):
+        setfit = SetFitClassifier(str(path))
+        setfit.classifier = joblib.load(Path(path) / "classifier.pkl")
+        setfit.fitted = True
+        return setfit
