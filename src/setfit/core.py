@@ -91,7 +91,10 @@ class SetFitClassifier(BaseEstimator, ClassifierMixin):
     ):
         train_examples = generate_multiple_sentence_pairs(X, y, data_iter)
         train_dataloader = DataLoader(
-            train_examples, shuffle=True, batch_size=batch_size
+            train_examples,
+            shuffle=True,
+            batch_size=batch_size,
+            generator=torch.Generator(device=self.model.device),
         )
         self.model.fit(
             train_objectives=[(train_dataloader, self.loss)],
