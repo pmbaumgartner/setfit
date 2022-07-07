@@ -42,12 +42,13 @@ def generate_sentence_pair_batch(
 
     for current_sentence, current_label in zip(sentences, labels):
         # Choose itself? Seems wrong.
-        positive_pair = random.choice(sent_lookup[current_label])
-        while positive_pair == current_sentence:
-            positive_pair = random.choice(sent_lookup[current_label])
+        positive_options = sent_lookup[current_label]
+        positive_options = [option for option in positive_options if option != current_sentence]
+        if positive_options:
+            positive_pair = random.choice(positive_options)
+            pairs.append(InputExample(texts=[current_sentence, positive_pair], label=1.0))
 
         negative_pair = random.choice(neg_lookup[current_label])
-        pairs.append(InputExample(texts=[current_sentence, positive_pair], label=1.0))
         pairs.append(InputExample(texts=[current_sentence, negative_pair], label=0.0))
 
     # return a 2-tuple of our image pairs and labels
