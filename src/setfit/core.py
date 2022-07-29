@@ -2,7 +2,7 @@ from pathlib import Path
 import random
 from collections import defaultdict
 from itertools import chain, groupby
-from typing import List, Optional, Union
+from typing import Any, List, Optional, Union
 
 import joblib
 import numpy as np
@@ -67,15 +67,19 @@ class SetFitClassifier(BaseEstimator, ClassifierMixin):
     def __init__(
         self,
         model: str,
-        classifier_head=LogisticRegression(),
+        classifier_head: Optional[Any] = None,
         loss=losses.CosineSimilarityLoss,
         random_state: int = 1234,
     ):
         random.seed(random_state)
         np.random.seed(random_state)
         torch.manual_seed(random_state)
+        self.random_state = random_state
         self.model = SentenceTransformer(model)
-        self.classifier = classifier_head
+        if classifier_head is None:
+            self.classifier_head = LogisticRegression()
+        else:
+            self.classifier_head = classifier_head()
         self.loss = loss(self.model)
         self.fitted = False
 
@@ -104,7 +108,7 @@ class SetFitClassifier(BaseEstimator, ClassifierMixin):
         )
 
         X_train = self.model.encode(X)
-        self.classifier.fit(X_train, y)
+        self.classifier_head.fit(X_train, y)
         self.fitted = True
 
     def predict(self, X, y=None):
@@ -114,7 +118,7 @@ class SetFitClassifier(BaseEstimator, ClassifierMixin):
                 " Call 'fit' with appropriate arguments before using this estimator."
             )
         X_embed = self.model.encode(X)
-        preds = self.classifier.predict(X_embed)
+        preds = self.classifier_head.predict(X_embed)
         return preds
 
     def predict_proba(self, X, y=None):
@@ -124,7 +128,7 @@ class SetFitClassifier(BaseEstimator, ClassifierMixin):
                 " Call 'fit' with appropriate arguments before using this estimator."
             )
         X_embed = self.model.encode(X)
-        preds = self.classifier.predict_proba(X_embed)
+        preds = self.classifier_head.predict_proba(X_embed)
         return preds
 
     def save(
@@ -139,11 +143,11 @@ class SetFitClassifier(BaseEstimator, ClassifierMixin):
                 " Call 'fit' with appropriate arguments before saving this estimator."
             )
         self.model.save(str(path), model_name, create_model_card)
-        joblib.dump(self.classifier, Path(path) / "classifier.pkl")
+        joblib.dump(self.classifier_head, Path(path) / "classifier.pkl")
 
     @classmethod
     def load(cls, path: StrOrPath):
         setfit = SetFitClassifier(str(path))
-        setfit.classifier = joblib.load(Path(path) / "classifier.pkl")
+        setfit.classifier_head = joblib.load(Path(path) / "classifier.pkl")
         setfit.fitted = True
         return setfit

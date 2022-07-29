@@ -5,7 +5,7 @@ import numpy as np
 
 
 def test_version():
-    assert __version__ == "0.1.3"
+    assert __version__ == "0.1.4"
 
 
 def test_e2e():
@@ -48,3 +48,9 @@ def test_save_load(tmp_path):
     clf2 = SetFitClassifier.load(tmp_path)
     p2 = clf2.predict(docs)
     assert np.array_equal(p1, p2)
+
+
+def test_get_params():
+    # required for GridSearchCV
+    clf = SetFitClassifier("paraphrase-MiniLM-L3-v2")
+    assert clf.get_params()
