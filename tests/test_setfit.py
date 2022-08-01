@@ -72,7 +72,7 @@ def test_single_example_no_loop():
     assert pproba.shape == (2, 2)
 
 
-def test_multilabel():
+def test_multiclass():
     docs = ["yay", "boo", "yes", "no", "yeah", "maybe", "don't know"]
     labels = [1, 0, 1, 0, 1, 2, 2]
 
