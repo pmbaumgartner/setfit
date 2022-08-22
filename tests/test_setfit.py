@@ -5,7 +5,7 @@ import numpy as np
 
 
 def test_version():
-    assert __version__ == "0.1.3"
+    assert __version__ == "0.1.4"
 
 
 def test_e2e():
@@ -50,6 +50,12 @@ def test_save_load(tmp_path):
     assert np.array_equal(p1, p2)
 
 
+def test_get_params():
+    # required for GridSearchCV
+    clf = SetFitClassifier("paraphrase-MiniLM-L3-v2")
+    assert clf.get_params()
+
+
 def test_single_example_no_loop():
     docs = ["yes", "no"]
     labels = [1, 0]
@@ -66,7 +72,7 @@ def test_single_example_no_loop():
     assert pproba.shape == (2, 2)
 
 
-def test_multilabel():
+def test_multiclass():
     docs = ["yay", "boo", "yes", "no", "yeah", "maybe", "don't know"]
     labels = [1, 0, 1, 0, 1, 2, 2]
 
