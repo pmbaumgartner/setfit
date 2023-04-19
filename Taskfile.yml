@@ -1,0 +1,10 @@
+version: "3"
+
+tasks:
+  poetry_install:
+    desc: Installs the package with poetry. Checks that build dependencies are available.
+    cmds:
+      - poetry install
+    preconditions:
+      - which poetry
+      - which cmake
