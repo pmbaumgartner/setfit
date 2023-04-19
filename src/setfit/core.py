@@ -17,6 +17,14 @@ from torch import nn
 StrOrPath = Union[Path, str]
 
 
+def check_fitted(model):
+    if not model.fitted:
+        raise NotFittedError(
+            "This SetFitClassifier instance is not fitted yet."
+            " Call 'fit' with appropriate arguments before saving this estimator."
+        )
+
+
 def generate_sentence_pair_batch(
     sentences: List[str], labels: List[float], alpha: float = 0.0
 ) -> List[InputExample]:
@@ -36,7 +44,7 @@ def generate_sentence_pair_batch(
         raise ValueError(
             f"`alpha` must be between 0 and 0.5. "
             f"You passed {alpha}. "
-            "`alpha` > 0.5 will inverts the label."
+            "`alpha` > 0.5 will invert the label."
         )
     # 7x faster than original implementation on small data,
     # 14x faster on 10000 examples
@@ -164,21 +172,13 @@ class SetFitClassifier(BaseEstimator, ClassifierMixin):
         self.fitted = True
 
     def predict(self, X, y=None):
-        if not self.fitted:
-            raise NotFittedError(
-                "This SetFitClassifier instance is not fitted yet."
-                " Call 'fit' with appropriate arguments before using this estimator."
-            )
+        check_fitted(self)
         X_embed = self.model.encode(X)
         preds = self.classifier_head.predict(X_embed)
         return preds
 
     def predict_proba(self, X, y=None):
-        if not self.fitted:
-            raise NotFittedError(
-                "This SetFitClassifier instance is not fitted yet."
-                " Call 'fit' with appropriate arguments before using this estimator."
-            )
+        check_fitted(self)
         X_embed = self.model.encode(X, convert_to_numpy=True)
         X_embed = cast(np.ndarray, X_embed)
         preds = self.classifier_head.predict_proba(X_embed)
@@ -190,11 +190,7 @@ class SetFitClassifier(BaseEstimator, ClassifierMixin):
         model_name: Optional[str] = None,
         create_model_card: bool = False,
     ):
-        if not self.fitted:
-            raise NotFittedError(
-                "This SetFitClassifier instance is not fitted yet."
-                " Call 'fit' with appropriate arguments before saving this estimator."
-            )
+        check_fitted(self)
         self.model.save(str(path), model_name, create_model_card)
         joblib.dump(self.classifier_head, Path(path) / "classifier.pkl")
 
