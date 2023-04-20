@@ -1,4 +1,4 @@
-name: Linting & Testing
+name: Evaluate
 
 on:
   workflow_dispatch:
