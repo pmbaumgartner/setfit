@@ -1,4 +1,4 @@
-name: Linting & Testing
+name: Evaluate
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
 # Cancel existing executions when new commits are pushed onto the branch
 
 jobs:
-  lint_and_test:
+  evaluate:
     runs-on: ubuntu-latest
     # timeout-minutes: 15
     steps:
@@ -25,7 +25,7 @@ jobs:
           key: ${{ runner.os }}-venv-${{ hashFiles('**/poetry.lock') }}
       - name: Upgrade pip, install dependencies, config poetry
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip poetry
           python -m poetry config virtualenvs.in-project true
       - name: Install Dependencies
         # --no-root so we don't cache our package

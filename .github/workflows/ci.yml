@@ -30,8 +30,6 @@ jobs:
         uses: actions/setup-python@v3
         with:
           python-version: "3.9"
-          cache: pip
-          cache-dependency-path: "**/requirements-ci.txt"
       - name: Cache the virtualenv (poetry package files)
         uses: actions/cache@v2
         with:
@@ -39,8 +37,7 @@ jobs:
           key: ${{ runner.os }}-venv-${{ hashFiles('**/poetry.lock') }}
       - name: Upgrade pip, install dependencies, config poetry
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-ci.txt
+          python -m pip install --upgrade pip poetry
           python -m poetry config virtualenvs.in-project true
       - name: Install Dependencies
         # --no-root so we don't cache our package
