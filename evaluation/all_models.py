@@ -4,9 +4,9 @@ from tabulate import tabulate
 
 models = [
     "all-mpnet-base-v2",
-    "gtr-t5-xxl",
+    # "gtr-t5-xxl",
     "gtr-t5-xl",
-    "sentence-t5-xxl",
+    # "sentence-t5-xxl",
     "gtr-t5-large",
     "all-mpnet-base-v1",
     "multi-qa-mpnet-base-dot-v1",
