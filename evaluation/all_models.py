@@ -71,7 +71,7 @@ docs = [
 labels = [1.0] * 11 + [0.0] * 11
 
 eval_data = []
-for model in models[-3:-2]:
+for model in models:
     clf = SetFitClassifier(model)
     start = time()
     clf.fit(docs, labels, show_progress_bar=False)

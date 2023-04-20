@@ -33,4 +33,4 @@ jobs:
       - name: Install Package
         run: poetry install --no-interaction
       - name: Run Evaluation
-        run: poetry run python evaluation/all_models.py
+        run: poetry run python evaluation/all_models.py >> $GITHUB_STEP_SUMMARY
