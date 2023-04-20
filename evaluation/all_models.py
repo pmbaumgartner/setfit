@@ -58,16 +58,16 @@ models = [
 docs = [
     # positives
     "yes",
-    "aye",
-    "certainly",
-    "definitely",
     "indeed",
-    "ok",
+    "certainly",
+    "absolutely",
     "roger",
-    "right",
-    "sure",
+    "aye",
     "yep",
-    "yeah",
+    "ok",
+    "right",
+    "agreed",
+    "definitely",
     # negatives
     "no",
     "never",
@@ -85,7 +85,7 @@ docs = [
 labels = [1.0] * 11 + [0.0] * 11
 
 eval_data = []
-for model in models[-4:-3]:
+for model in models:
     with suppress_stdout_stderr():
         # Don't output the model download info
         clf = SetFitClassifier(model)
