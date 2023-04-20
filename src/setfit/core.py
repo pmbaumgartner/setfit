@@ -2,7 +2,7 @@ from pathlib import Path
 import random
 from collections import defaultdict
 from itertools import chain, groupby
-from typing import List, Optional, Union, cast
+from typing import Any, Dict, List, Optional, Union, cast
 
 import joblib
 import numpy as np
@@ -11,14 +11,13 @@ from sentence_transformers import InputExample, SentenceTransformer, losses
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.exceptions import NotFittedError
 from sklearn.linear_model import LogisticRegression
-from torch.utils.data import DataLoader
-from torch import nn
+from torch.utils.data import DataLoader, Dataset
 
 StrOrPath = Union[Path, str]
 
 
 def check_fitted(model):
-    if not model.fitted:
+    if not getattr(model, "fitted", False):
         raise NotFittedError(
             "This SetFitClassifier instance is not fitted yet."
             " Call 'fit' with appropriate arguments before saving this estimator."
@@ -112,7 +111,6 @@ class SetFitClassifier(BaseEstimator, ClassifierMixin):
         self,
         model: SentenceTransformer = SentenceTransformer("all-MiniLM-L6-v2"),
         classifier_head: ClassifierMixin = LogisticRegression(),
-        loss: nn.Module = losses.CosineSimilarityLoss,
         random_state: int = 1234,
     ):
         self.random_state = random_state
@@ -121,9 +119,6 @@ class SetFitClassifier(BaseEstimator, ClassifierMixin):
         torch.manual_seed(random_state)
         self.model = model
         self.classifier_head = classifier_head
-        # TODO: Loss should not create object
-        self.loss = loss(self.model)
-        self.fitted = False
 
     def fit(
         self,
@@ -151,6 +146,9 @@ class SetFitClassifier(BaseEstimator, ClassifierMixin):
             show_progress_bar (bool, optional): show progress bar while training.
               Defaults to True.
         """
+        # TODO: Make Loss a parameter
+        # Will need a dictionary mapping of loss to object
+        loss = losses.CosineSimilarityLoss(self.model)
         train_examples = generate_multiple_sentence_pairs(
             X, y, iter=data_iter, alpha=alpha
         )
@@ -161,7 +159,7 @@ class SetFitClassifier(BaseEstimator, ClassifierMixin):
             generator=torch.Generator(device=self.model.device),
         )
         self.model.fit(
-            train_objectives=[(train_dataloader, self.loss)],
+            train_objectives=[(train_dataloader, loss)],
             epochs=train_iter,
             warmup_steps=warmup_steps,
             show_progress_bar=show_progress_bar,
@@ -171,13 +169,13 @@ class SetFitClassifier(BaseEstimator, ClassifierMixin):
         self.classifier_head.fit(X_train, y)
         self.fitted = True
 
-    def predict(self, X, y=None):
+    def predict(self, X: List[str]) -> np.ndarray:
         check_fitted(self)
         X_embed = self.model.encode(X)
         preds = self.classifier_head.predict(X_embed)
         return preds
 
-    def predict_proba(self, X, y=None):
+    def predict_proba(self, X: List[str]) -> np.ndarray:
         check_fitted(self)
         X_embed = self.model.encode(X, convert_to_numpy=True)
         X_embed = cast(np.ndarray, X_embed)
@@ -195,9 +193,21 @@ class SetFitClassifier(BaseEstimator, ClassifierMixin):
         joblib.dump(self.classifier_head, Path(path) / "classifier.pkl")
 
     @classmethod
-    def load(cls, path: StrOrPath):
+    def load(cls, path: StrOrPath) -> "SetFitClassifier":
         model = SentenceTransformer(str(path))
         setfit = SetFitClassifier(model)
         setfit.classifier_head = joblib.load(Path(path) / "classifier.pkl")
         setfit.fitted = True
         return setfit
+
+    def embed(
+        self, X: List[str], encode_kwargs: Optional[Dict[str, Any]] = None
+    ) -> np.ndarray:
+        if encode_kwargs is None:
+            encode_kwargs = {}
+        check_fitted(self)
+        X_embed = self.model.encode(X, convert_to_numpy=True, **encode_kwargs)
+        X_embed = cast(np.ndarray, X_embed)
+        return X_embed
+
+    # TODO: encode after fitted
