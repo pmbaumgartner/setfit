@@ -2,6 +2,7 @@ name: Evaluate
 
 on:
   workflow_dispatch:
+  push:
 
 # Cancel existing executions when new commits are pushed onto the branch
 
