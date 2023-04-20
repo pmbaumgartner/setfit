@@ -2,17 +2,31 @@ from setfit import SetFitClassifier
 from time import time
 from tabulate import tabulate
 
+# Via Stack Overflow
+# https://stackoverflow.com/questions/11130156/suppress-stdout-stderr-print-from-python-functions
+from contextlib import contextmanager, redirect_stderr, redirect_stdout
+from os import devnull
+
+
+@contextmanager
+def suppress_stdout_stderr():
+    """A context manager that redirects stdout and stderr to devnull"""
+    with open(devnull, "w") as fnull:
+        with redirect_stderr(fnull) as err, redirect_stdout(fnull) as out:
+            yield (err, out)
+
+
 models = [
     "all-mpnet-base-v2",
     # "gtr-t5-xxl",
-    "gtr-t5-xl",
+    # "gtr-t5-xl",
     # "sentence-t5-xxl",
     "gtr-t5-large",
     "all-mpnet-base-v1",
     "multi-qa-mpnet-base-dot-v1",
     "multi-qa-mpnet-base-cos-v1",
     "all-roberta-large-v1",
-    "sentence-t5-xl",
+    # "sentence-t5-xl",
     "all-distilroberta-v1",
     "all-MiniLM-L12-v1",
     "all-MiniLM-L12-v2",
@@ -71,8 +85,10 @@ docs = [
 labels = [1.0] * 11 + [0.0] * 11
 
 eval_data = []
-for model in models:
-    clf = SetFitClassifier(model)
+for model in models[-4:-3]:
+    with suppress_stdout_stderr():
+        # Don't output the model download info
+        clf = SetFitClassifier(model)
     start = time()
     clf.fit(docs, labels, show_progress_bar=False)
     train_duration = time() - start

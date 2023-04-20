@@ -3,8 +3,6 @@ name: Evaluate
 on:
   workflow_dispatch:
 
-# Cancel existing executions when new commits are pushed onto the branch
-
 jobs:
   evaluate:
     runs-on: ubuntu-latest
