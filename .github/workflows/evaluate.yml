@@ -2,12 +2,11 @@ name: Evaluate
 
 on:
   workflow_dispatch:
-  push:
 
 # Cancel existing executions when new commits are pushed onto the branch
 
 jobs:
-  lint_and_test:
+  evaluate:
     runs-on: ubuntu-latest
     # timeout-minutes: 15
     steps:
