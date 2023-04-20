@@ -1,21 +1,27 @@
 [tool.poetry]
 name = "setfit"
-version = "0.1.4"
-description = ""
+version = "0.1.3"
+description = "A lite version of SetFit classification"
 authors = ["Peter Baumgartner"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.7"
+python = "^3.8"
 sentence-transformers = "^2.1.0"
 scikit-learn = "^1.0.1"
 torch = "^1.10.0"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.0.261"
 pytest = "^5.2"
-black = "^21.12b0"
 ipython = "^7.30.1"
 pytest-cov = "^3.0.0"
+mypy = "^1.2.0"
+black = "^23.3.0"
+
+
+[tool.poetry.group.evaluation.dependencies]
+tabulate = "^0.9.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

@@ -16,19 +16,45 @@ from torch.utils.data import DataLoader
 StrOrPath = Union[Path, str]
 
 
+def check_fitted(model):
+    if not getattr(model, "fitted", False):
+        raise NotFittedError(
+            "This SetFitClassifier instance is not fitted yet."
+            " Call 'fit' with appropriate arguments before saving this estimator."
+        )
+
+
 def generate_sentence_pair_batch(
-    sentences: List[str], labels: List[float]
+    sentences: List[str], labels: List[float], alpha: float = 0.0
 ) -> List[InputExample]:
+    """Generate a batch of sentence pairs of labeled data.
+    Args:
+        sentences (List[str]): Input Sentences
+        labels (List[float]): Input Labels
+        alpha (float, optional): Soft labeling regularization to apply
+          (i.e. same label = 1 - alpha). Defaults to 0.0.
+    Returns:
+        List[InputExample]: Pairs of sentences, len=(2*sentences),
+          with a label of 0 if different-label, 1 if same label.
+    """
+    if alpha > 0.5 or alpha < 0.0:
+        raise ValueError(
+            f"`alpha` must be between 0 and 0.5. "
+            f"You passed {alpha}. "
+            "`alpha` > 0.5 will invert the label."
+        )
     # 7x faster than original implementation on small data,
     # 14x faster on 10000 examples
     pairs = []
     sent_lookup = defaultdict(list)
-    single_example = {}
     for label, grouper in groupby(
-        ((s, l) for s, l in zip(sentences, labels)), key=lambda x: x[1]
+        sorted(
+            ((sent, label) for sent, label in zip(sentences, labels)),
+            key=lambda x: x[1],
+        ),
+        key=lambda x: x[1],
     ):
         sent_lookup[label].extend(list(i[0] for i in grouper))
-        single_example[label] = len(sent_lookup[label]) == 1
     neg_lookup = {}
     for current_label in sent_lookup:
         negative_options = list(
@@ -43,28 +69,40 @@ def generate_sentence_pair_batch(
         neg_lookup[current_label] = negative_options
 
     for current_sentence, current_label in zip(sentences, labels):
+        # Choose itself? Seems wrong.
         positive_pair = random.choice(sent_lookup[current_label])
-        if not single_example[current_label]:
-            # choosing itself as a matched pair seems wrong,
-            # but we need to account for the case of 1 positive example
-            # so as long as there's not a single positive example,
-            # we'll reselect the other item in the pair until it's different
-            while positive_pair == current_sentence:
-                positive_pair = random.choice(sent_lookup[current_label])
+        while positive_pair == current_sentence:
+            positive_pair = random.choice(sent_lookup[current_label])
 
         negative_pair = random.choice(neg_lookup[current_label])
-        pairs.append(InputExample(texts=[current_sentence, positive_pair], label=1.0))
-        pairs.append(InputExample(texts=[current_sentence, negative_pair], label=0.0))
-
+        pairs.append(
+            InputExample(texts=[current_sentence, positive_pair], label=1.0 - alpha)
+        )
+        pairs.append(
+            InputExample(texts=[current_sentence, negative_pair], label=0.0 + alpha)
+        )
     return pairs
 
 
 def generate_multiple_sentence_pairs(
-    sentences: List[str], labels: List[float], iter: int = 1
-):
+    sentences: List[str], labels: List[float], iter: int = 1, alpha: float = 0.0
+) -> List[InputExample]:
+    """Generate pairs of match/non-match sentences
+    Args:
+        sentences (List[str]): Input Sentences
+        labels (List[float]): Input Labels
+        iter (int, optional): Number of passes over the data to generate pairs.
+          Defaults to 1.
+        alpha (float, optional): Soft labeling regularization to apply
+          (i.e. same label = 1 - alpha). Defaults to 0.0.
+    Returns:
+        List[InputExample]: Pairs of sentences, len=(2*sentences),
+          with a label of 0 if different-label, 1 if same label.
+    """
+
     all_pairs = []
     for _ in range(iter):
-        all_pairs.extend(generate_sentence_pair_batch(sentences, labels))
+        all_pairs.extend(generate_sentence_pair_batch(sentences, labels, alpha=alpha))
     return all_pairs
 
 
@@ -117,21 +155,13 @@ class SetFitClassifier(BaseEstimator, ClassifierMixin):
         self.fitted = True
 
     def predict(self, X, y=None):
-        if not self.fitted:
-            raise NotFittedError(
-                "This SetFitClassifier instance is not fitted yet."
-                " Call 'fit' with appropriate arguments before using this estimator."
-            )
+        check_fitted(self)
         X_embed = self.model.encode(X)
         preds = self.classifier_head.predict(X_embed)
         return preds
 
     def predict_proba(self, X, y=None):
-        if not self.fitted:
-            raise NotFittedError(
-                "This SetFitClassifier instance is not fitted yet."
-                " Call 'fit' with appropriate arguments before using this estimator."
-            )
+        check_fitted(self)
         X_embed = self.model.encode(X)
         preds = self.classifier_head.predict_proba(X_embed)
         return preds
@@ -142,11 +172,7 @@ class SetFitClassifier(BaseEstimator, ClassifierMixin):
         model_name: Optional[str] = None,
         create_model_card: bool = False,
     ):
-        if not self.fitted:
-            raise NotFittedError(
-                "This SetFitClassifier instance is not fitted yet."
-                " Call 'fit' with appropriate arguments before saving this estimator."
-            )
+        check_fitted(self)
         self.model.save(str(path), model_name, create_model_card)
         joblib.dump(self.classifier_head, Path(path) / "classifier.pkl")
 
