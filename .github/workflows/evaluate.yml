@@ -1,0 +1,36 @@
+name: Linting & Testing
+
+on:
+  workflow_dispatch:
+
+# Cancel existing executions when new commits are pushed onto the branch
+
+jobs:
+  lint_and_test:
+    runs-on: ubuntu-latest
+    # timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Set up Python (and Cache CI dependencies)
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.9"
+      - name: Cache the virtualenv (poetry package files)
+        uses: actions/cache@v3
+        with:
+          path: |
+            ./.venv
+             ~/.cache/huggingface/
+          key: ${{ runner.os }}-venv-${{ hashFiles('**/poetry.lock') }}
+      - name: Upgrade pip, install dependencies, config poetry
+        run: |
+          python -m pip install --upgrade pip
+          python -m poetry config virtualenvs.in-project true
+      - name: Install Dependencies
+        # --no-root so we don't cache our package
+        run: poetry install --no-interaction --no-root --with=dev,evaluate
+      - name: Install Package
+        run: poetry install --no-interaction
+      - name: Run Evaluation
+        run: poetry run python evaluation/all_models.py

@@ -1,0 +1,57 @@
+name: Linting & Testing
+
+on:
+  push:
+    branches: [main]
+    # Only on these paths so that something like a README update doesn't trigger it
+    paths:
+      - "poetry.lock"
+      - "**.py"
+      - ".github/workflows/ci.yml"
+  pull_request:
+    paths:
+      - "poetry.lock"
+      - "**.py"
+      - ".github/workflows/ci.yml"
+
+# Cancel existing executions when new commits are pushed onto the branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint_and_test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Set up Python (and Cache CI dependencies)
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.9"
+          cache: pip
+          cache-dependency-path: "**/requirements-ci.txt"
+      - name: Cache the virtualenv (poetry package files)
+        uses: actions/cache@v2
+        with:
+          path: ./.venv
+          key: ${{ runner.os }}-venv-${{ hashFiles('**/poetry.lock') }}
+      - name: Upgrade pip, install dependencies, config poetry
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-ci.txt
+          python -m poetry config virtualenvs.in-project true
+      - name: Install Dependencies
+        # --no-root so we don't cache our package
+        run: poetry install --no-interaction --no-root --with=dev
+      - name: Install Package
+        run: poetry install --no-interaction
+      - name: Run black
+        run: poetry run black --check src/
+      - name: Run ruff
+        run: poetry run ruff check src/
+      - name: Run mypy
+        run: poetry run mypy -p src --ignore-missing-imports --follow-imports=silent --show-column-numbers --no-pretty
+      - name: Run Pytest
+        run: poetry run pytest
